@@ -5,11 +5,11 @@ require 'db_connect.php';
 $error = '';
 $success = '';
 
-// Check which step the user is currently on ('register', 'verify_otp', or 'success')
+// Alamin kung anong step ang kasalukuyang nasa user ('register', 'verify_otp', o 'success')
 $step = isset($_SESSION['pending_user']) ? 'verify_otp' : 'register';
 
-// ⚠️ REPLACE THIS WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
-$apps_script_url = "https://script.google.com/macros/s/YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL/exec";
+// ⚠️ PALITAN ITO NG IYONG DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
+$apps_script_url = "https://script.google.com/macros/s/AKfycbzraWE7fbxFfwI8mm5ixTHT9NLQUxLqcjlwfPpkl7yfe3-4F-t44fRosm3EL7sDj1ju4w/exec";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
@@ -23,11 +23,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $confirm_password = $_POST['confirm_password'];
 
         if ($password !== $confirm_password) {
-            $error = "Passwords do not match!";
+            $error = "Passwords do not match! Please try again.";
             $step = 'register';
         } else {
             try {
-                // 1. Check if email is already in the database
+                // 1. Tignan kung ang email ay naka-rehistro na sa database
                 $stmt = $conn->prepare("SELECT id FROM users WHERE email = :email");
                 $stmt->execute(['email' => $email]);
                 
@@ -35,10 +35,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $error = "Email is already registered. Please log in.";
                     $step = 'register';
                 } else {
-                    // 2. Generate a 6-digit random OTP
+                    // 2. Gumawa ng 6-digit OTP code
                     $otp = sprintf("%06d", mt_rand(100000, 999999));
 
-                    // Store details & hashed password temporarily in session (valid for 5 minutes)
+                    // I-store ang impormasyon sa session (valid ng 5 minuto)
                     $_SESSION['pending_user'] = [
                         'full_name' => $full_name,
                         'email'     => $email,
@@ -47,7 +47,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         'expires'   => time() + 300 
                     ];
 
-                    // 3. Call Google Apps Script Web App API to send email
+                    // 3. Tawagin ang Google Apps Script API para magpadala ng email
                     $target_url = $apps_script_url . "?action=signup_otp"
                                 . "&email=" . urlencode($email)
                                 . "&name=" . urlencode($full_name)
@@ -63,11 +63,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                     if ($response !== false && strpos($response, 'SUCCESS') !== false) {
                         $step = 'verify_otp';
-                        $success = "Verification code sent! Please check <b>" . htmlspecialchars($email) . "</b>.";
+                        $success = "Verification code sent to " . htmlspecialchars($email);
                     } else {
-                        // Fallback: Clear session if mail sending fails
                         unset($_SESSION['pending_user']);
-                        $error = "Could not send verification email. Please check your internet or try again later.";
+                        $error = "Could not send verification email. Please try again later.";
                         $step = 'register';
                     }
                 }
@@ -93,9 +92,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             unset($_SESSION['pending_user']);
             $step = 'register';
         } else if ($input_otp !== $_SESSION['pending_user']['otp']) {
-            $error = "Incorrect OTP code. Please check your inbox and try again.";
+            $error = "Incorrect OTP code. Please try again.";
         } else {
-            // OTP IS VALID -> Insert account into database!
+            // Tama ang OTP -> I-save ang account sa database
             try {
                 $pending = $_SESSION['pending_user'];
                 $insert = $conn->prepare("INSERT INTO users (full_name, email, password) VALUES (:full_name, :email, :password)");
@@ -128,53 +127,53 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign Up - CherryJoe River Park</title>
+    <title>Sign Up - CherryJoe</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', -apple-system, sans-serif; }
         body { background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(5,150,105,0.2)), url('imagesgallery7.jpg') center/cover fixed; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
-        .auth-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(16px); padding: 40px; border-radius: 24px; box-shadow: 0 25px 50px rgba(0,0,0,0.1); border: 1px solid rgba(255, 255, 255, 0.5); width: 100%; max-width: 420px; text-align: center; animation: fadeIn 0.6s forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
-        
+        .auth-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(16px); padding: 40px; border-radius: 24px; box-shadow: 0 25px 50px rgba(0,0,0,0.1); width: 100%; max-width: 420px; text-align: center; }
         .logo-icon { font-size: 45px; color: #059669; margin-bottom: 10px; }
         h2 { color: #1e293b; font-size: 26px; font-weight: 800; margin-bottom: 5px; }
-        p.subtitle { color: #64748b; font-size: 14px; margin-bottom: 25px; }
+        p.subtitle { color: #64748b; font-size: 14px; margin-bottom: 25px; line-height: 1.5; }
         
         .input-group { position: relative; margin-bottom: 18px; text-align: left; }
-        .input-group > i.left-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #10b981; font-size: 18px; }
+        .input-group i.left-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #10b981; font-size: 18px; }
         .input-group i.toggle-password { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 18px; cursor: pointer; transition: 0.3s ease; }
         .input-group i.toggle-password:hover { color: #10b981; }
 
-        .input-group input { width: 100%; padding: 15px 45px; border: 2px solid #e2e8f0; background: #f8fafc; border-radius: 14px; font-size: 15px; color: #1e293b; transition: all 0.3s ease; }
+        .input-group input { width: 100%; padding: 15px 45px; border: 2px solid #cbd5e1; background: #f8fafc; border-radius: 14px; font-size: 15px; color: #1e293b; transition: all 0.3s ease; }
         .input-group input:focus { border-color: #10b981; background: #ffffff; outline: none; box-shadow: 0 0 0 4px rgba(16,185,129,0.15); }
         
-        .otp-input { letter-spacing: 10px; font-size: 24px !important; font-weight: 800; text-align: center; color: #059669 !important; }
+        /* Input styling para sa walang right icon */
+        .input-group input.no-right-icon { padding-right: 20px; }
 
-        .submit-btn { background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 16px; width: 100%; border-radius: 50px; font-weight: 700; font-size: 16px; cursor: pointer; transition: 0.3s ease; margin-top: 5px; box-shadow: 0 10px 20px rgba(16, 185, 129, 0.25); }
+        .otp-input { letter-spacing: 10px; font-size: 22px !important; font-weight: 800; text-align: center; color: #059669 !important; }
+
+        .submit-btn { background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 16px; width: 100%; border-radius: 50px; font-weight: 700; font-size: 16px; cursor: pointer; transition: 0.3s ease; margin-top: 5px; }
         .submit-btn:hover { transform: translateY(-3px); box-shadow: 0 15px 25px rgba(16, 185, 129, 0.4); }
         
-        .cancel-btn { background: transparent; color: #64748b; border: 1px solid #cbd5e1; padding: 12px; width: 100%; border-radius: 50px; font-weight: 600; font-size: 14px; cursor: pointer; transition: 0.3s ease; margin-top: 10px; }
+        .cancel-btn { background: transparent; color: #64748b; border: 1px solid #cbd5e1; padding: 14px; width: 100%; border-radius: 50px; font-weight: 600; font-size: 14px; cursor: pointer; transition: 0.3s ease; margin-top: 10px; }
         .cancel-btn:hover { background: #f1f5f9; color: #1e293b; }
 
-        .bottom-link { display: block; margin-top: 25px; color: #475569; font-size: 14px; text-decoration: none; transition: 0.3s; }
+        .bottom-link { display: block; margin-top: 20px; color: #475569; font-size: 14px; text-decoration: none; transition: 0.3s; }
         .bottom-link span { color: #059669; font-weight: 700; }
         .bottom-link:hover span { text-decoration: underline; }
-        
+
         .error-msg { background: #fee2e2; color: #ef4444; padding: 12px; border-radius: 10px; font-size: 14px; margin-bottom: 20px; border: 1px solid #fca5a5; display: flex; align-items: center; gap: 8px; justify-content: center; font-weight: 600;}
         .success-msg { background: #d1fae5; color: #059669; padding: 12px; border-radius: 10px; font-size: 14px; margin-bottom: 20px; border: 1px solid #a7f3d0; display: flex; align-items: center; gap: 8px; justify-content: center; font-weight: 600;}
-        
-        .divider { display: flex; align-items: center; text-align: center; margin: 25px 0 20px 0; color: #94a3b8; font-size: 13px; font-weight: 600; }
+
+        .divider { display: flex; align-items: center; text-align: center; margin: 20px 0; color: #94a3b8; font-size: 13px; font-weight: 600; }
         .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #cbd5e1; }
         .divider::before { margin-right: 15px; } .divider::after { margin-left: 15px; }
 
         .google-btn { 
-            background: #f5f5ff; color: #2563eb; border: 1px solid #dadaf5; 
-            padding: 12px 20px; width: 100%; border-radius: 50px; font-weight: 700; 
-            font-size: 16px; cursor: pointer; transition: 0.3s ease; display: flex; 
-            align-items: center; justify-content: center; gap: 12px; text-decoration: none; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02); 
+            background: #ffffff; color: #374151; border: 2px solid #cbd5e1; 
+            padding: 13px; width: 100%; border-radius: 50px; font-weight: 700; 
+            font-size: 15px; cursor: pointer; transition: 0.3s ease; display: flex; 
+            align-items: center; justify-content: center; gap: 10px; text-decoration: none; 
         }
-        .google-btn:hover { background: #ebebff; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.05); border-color: #c7c7f0; }
+        .google-btn:hover { background: #f8fafc; border-color: #94a3b8; transform: translateY(-2px); }
     </style>
 </head>
 <body>
@@ -197,11 +196,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
                 <div class="input-group">
                     <i class="fas fa-user left-icon"></i>
-                    <input type="text" name="full_name" required placeholder="Full Name">
+                    <input type="text" name="full_name" class="no-right-icon" required placeholder="Full Name">
                 </div>
+
                 <div class="input-group">
                     <i class="fas fa-envelope left-icon"></i>
-                    <input type="email" name="email" required placeholder="Email Address">
+                    <input type="email" name="email" class="no-right-icon" required placeholder="Email Address">
                 </div>
                 
                 <div class="input-group">
@@ -222,7 +222,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <div class="divider">OR</div>
             
             <a href="google_login.php" class="google-btn">
-                <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
                     <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
@@ -253,7 +253,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 
                 <div class="input-group">
                     <i class="fas fa-key left-icon"></i>
-                    <input type="text" name="otp_code" class="otp-input" maxlength="6" pattern="\d{6}" required placeholder="000000" autofocus autocomplete="off">
+                    <input type="text" name="otp_code" class="otp-input no-right-icon" maxlength="6" pattern="\d{6}" required placeholder="000000" autofocus autocomplete="off">
                 </div>
 
                 <button type="submit" class="submit-btn">Verify & Create Account</button>
@@ -268,13 +268,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <!-- ========================================== -->
             <!-- STEP 3: SUCCESS STATE                      -->
             <!-- ========================================== -->
-            <i class="fas fa-check-circle logo-icon" style="color: #10b981; font-size: 60px;"></i>
-            <h2 style="margin-top: 15px;">Account Verified!</h2>
+            <i class="fas fa-check-circle logo-icon" style="color: #059669; font-size: 55px;"></i>
+            <h2 style="margin-top: 10px;">Account Verified!</h2>
             <p class="subtitle"><?php echo $success; ?></p>
+            <a href="login.php" style="text-decoration:none;"><button class="submit-btn">Go to Login</button></a>
         <?php endif; ?>
 
     </div>
 
+    <!-- JAVASCRIPT FOR EYE TOGGLE & BUTTON SPINNER -->
     <script>
         function togglePass(inputId, icon) {
             const input = document.getElementById(inputId);
